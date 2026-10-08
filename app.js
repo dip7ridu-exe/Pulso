@@ -1,4 +1,4 @@
-/* Pulso: static, dependency-free playlist library. YouTube and Google supply playback/auth. */
+/* Pulso 2.0: static playlist library with native YouTube and Spotify embeds. */
 (() => {
   'use strict';
   const $ = (selector) => document.querySelector(selector);
@@ -6,6 +6,7 @@
   const STORAGE_LIST = 'pulso.playlists.v1';
   const STORAGE_CLIENT = 'pulso.oauthClient.v1';
   const SCOPE = 'https://www.googleapis.com/auth/youtube.readonly';
+  const P = window.PulsoPlaylist;
   const PALETTES = [
     ['#8f577b', '#463361'], ['#655da7', '#272e63'], ['#bb735c', '#713951'],
     ['#437e88', '#345077'], ['#b57f96', '#594268'], ['#738f70', '#365d58']
@@ -19,13 +20,14 @@
   };
   let toastTimer;
   let iframePromise;
+  let playerTimer;
 
   function readStorage(key) { try { return localStorage.getItem(key); } catch { return null; } }
   function writeStorage(key, value) { try { localStorage.setItem(key, value); return true; } catch { return false; } }
   function readSaved() {
     try {
       const data = JSON.parse(localStorage.getItem(STORAGE_LIST) || '[]');
-      return Array.isArray(data) ? data.filter(x => x && /^[A-Za-z0-9_-]{10,128}$/.test(x.id) && typeof x.title === 'string').slice(0, 300) : [];
+      return Array.isArray(data) ? data.map(P.normalize).filter(Boolean).slice(0, 300) : [];
     } catch { return []; }
   }
   function saveLists() { return writeStorage(STORAGE_LIST, JSON.stringify(state.saved)); }
@@ -40,8 +42,8 @@
   }
   function allLists() {
     const map = new Map();
-    for (const list of state.saved) map.set(list.id, { ...list, saved: true });
-    for (const list of state.synced) map.set(list.id, { ...map.get(list.id), ...list, synced: true });
+    for (const list of state.saved) map.set(P.key(list), { ...list, saved: true });
+    for (const list of state.synced) map.set(P.key(list), { ...map.get(P.key(list)), ...list, synced: true });
     return [...map.values()];
   }
   function colorsFor(id) {
@@ -56,55 +58,45 @@
     const grid = $('#playlist-grid'); grid.replaceChildren();
     for (const list of visible) {
       const [a, b] = colorsFor(list.id);
-      const card = document.createElement('article'); card.className = 'playlist-card' + (state.activeId === list.id ? ' selected' : '');
-      const button = document.createElement('button'); button.className = 'card-open'; button.type = 'button'; button.setAttribute('aria-label', 'Ouvir ' + list.title); button.addEventListener('click', () => openPlaylist(list.id));
+      const listKey = P.key(list);
+      const card = document.createElement('article'); card.className = 'playlist-card' + (state.activeId === listKey ? ' selected' : '');
+      const button = document.createElement('button'); button.className = 'card-open'; button.type = 'button'; button.setAttribute('aria-label', 'Ouvir ' + list.title); button.addEventListener('click', () => openPlaylist(listKey));
       const art = document.createElement('div'); art.className = 'card-art'; art.style.setProperty('--card-a', a); art.style.setProperty('--card-b', b);
       const letter = document.createElement('span'); letter.textContent = artLetter(list.title);
       const play = document.createElement('div'); play.className = 'card-play'; play.append(icon('play')); art.append(letter, play);
       const body = document.createElement('div'); body.className = 'card-body';
       const info = document.createElement('div'); info.className = 'card-info';
       const title = document.createElement('strong'); title.textContent = list.title;
-      const subtitle = document.createElement('small'); subtitle.textContent = list.synced ? 'YouTube · sua conta' : 'YouTube · link salvo';
+      const subtitle = document.createElement('small'); subtitle.textContent = list.provider === 'spotify' ? 'Spotify · link salvo' : list.synced ? 'YouTube · sua conta' : 'YouTube · link salvo';
       info.append(title, subtitle); body.append(info); button.append(art, body); card.append(button);
       if (list.saved && !list.synced) {
         const remove = document.createElement('button'); remove.className = 'card-remove'; remove.type = 'button'; remove.title = 'Remover desta biblioteca'; remove.setAttribute('aria-label', 'Remover ' + list.title);
-        remove.append(icon('trash')); remove.addEventListener('click', () => removePlaylist(list.id)); body.append(remove);
+        remove.append(icon('trash')); remove.addEventListener('click', () => removePlaylist(listKey)); card.append(remove); card.classList.add('removable');
       }
       grid.append(card);
     }
     const empty = $('#empty-state'); empty.hidden = visible.length > 0;
     $('#empty-title').textContent = state.search ? 'Nenhuma playlist encontrada' : 'A sua biblioteca começa aqui';
-    $('#empty-description').textContent = state.search ? 'Tente buscar por outro nome.' : 'Cole o link de uma playlist do YouTube e comece a ouvir.';
+    $('#empty-description').textContent = state.search ? 'Tente buscar por outro nome.' : 'Cole uma playlist do YouTube ou Spotify e abra o player.';
     $('#empty-add').hidden = !!state.search;
     renderShortcuts(lists);
   }
   function renderShortcuts(lists) {
     const box = $('#shortcut-list'); box.replaceChildren();
     for (const list of lists.slice(0, 12)) {
-      const row = document.createElement('button'); row.type = 'button'; row.className = 'shortcut' + (state.activeId === list.id ? ' active' : '');
+      const row = document.createElement('button'); row.type = 'button'; row.className = 'shortcut' + (state.activeId === P.key(list) ? ' active' : '');
       const dot = document.createElement('span'); dot.className = 'shortcut-dot'; dot.style.setProperty('--accent', colorsFor(list.id)[0]);
       const text = document.createElement('span'); text.textContent = list.title; row.append(dot, text);
-      row.addEventListener('click', () => openPlaylist(list.id)); box.append(row);
+      row.addEventListener('click', () => openPlaylist(P.key(list))); box.append(row);
     }
   }
   function removePlaylist(id) {
-    const list = state.saved.find(x => x.id === id); if (!list) return;
+    const list = state.saved.find(x => P.key(x) === id); if (!list) return;
     if (!window.confirm('Remover "' + list.title + '" deste navegador?')) return;
-    state.saved = state.saved.filter(x => x.id !== id);
+    state.saved = state.saved.filter(x => P.key(x) !== id);
     if (!saveLists()) toast('Não foi possível salvar a alteração neste navegador.');
     if (state.activeId === id) resetPlayer();
     renderLibrary(); toast('Playlist removida.');
-  }
-  function extractPlaylistId(raw) {
-    const value = raw.trim();
-    if (/^[A-Za-z0-9_-]{10,128}$/.test(value)) return value;
-    try {
-      const url = new URL(value);
-      if (url.protocol !== 'https:' && url.protocol !== 'http:') return null;
-      if (!['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com'].includes(url.hostname.toLowerCase())) return null;
-      const id = url.searchParams.get('list');
-      return id && /^[A-Za-z0-9_-]{10,128}$/.test(id) ? id : null;
-    } catch { return null; }
   }
   function openDialog(dialog, focusSelector) {
     if (!dialog.open) dialog.showModal();
@@ -117,83 +109,150 @@
     $('#disconnect-button').hidden = !state.token;
     openDialog($('#settings-dialog'), '#client-id');
   }
+  function setPlayerStatus(message, level = 'info') {
+    const box = $('#player-status'); box.hidden = !message;
+    box.dataset.level = level; $('#status-message').textContent = message;
+    $('#retry-player').hidden = !state.selected;
+  }
+  function destroyPlayer() {
+    clearTimeout(playerTimer);
+    const oldPlayer = state.player;
+    state.player = null; state.playerReady = false; state.playerId = null;
+    try { oldPlayer?.destroy(); } catch {}
+    $('#embed-host').replaceChildren();
+    $('#prev-button').disabled = true; $('#next-button').disabled = true;
+  }
   function resetPlayer() {
-    state.requestId++; state.activeId = null; state.selected = null; state.items = []; state.playlistIds = []; state.queueLimit = 60;
-    if (state.player?.stopVideo) { try { state.player.stopVideo(); } catch {} }
+    state.requestId++; destroyPlayer();
+    state.activeId = null; state.selected = null; state.items = []; state.playlistIds = []; state.queueLimit = 60;
+    $('#player-frame').classList.remove('spotify-frame');
     $('#player-placeholder').hidden = false;
     $('#playing-title').textContent = 'Nada por aqui ainda'; $('#playing-description').textContent = 'Adicione sua primeira playlist e dê o play.';
     $('#listen-title').textContent = 'Seu player'; $('#listen-subtitle').textContent = 'Escolha uma playlist para começar.';
-    $('#youtube-link').hidden = true; $('#prev-button').disabled = true; $('#next-button').disabled = true;
-    renderQueue(); renderLibrary();
+    $('#source-link').hidden = true; $('#source-badge').hidden = true;
+    setPlayerStatus(''); renderQueue(); renderLibrary();
   }
   function selectPlaylist(id) {
-    const list = allLists().find(x => x.id === id); if (!list) return null;
+    const list = allLists().find(x => P.key(x) === id); if (!list) return null;
     state.activeId = id; state.selected = list; state.items = []; state.playlistIds = []; state.queueLimit = 60;
-    $('#listen-title').textContent = list.title; $('#listen-subtitle').textContent = 'Pronto para ouvir no player do YouTube.';
-    $('#playing-title').textContent = list.title; $('#playing-description').textContent = 'Playlist do YouTube';
+    const providerName = list.provider === 'spotify' ? 'Spotify' : 'YouTube';
+    $('#listen-title').textContent = list.title; $('#listen-subtitle').textContent = 'Aperte Play no player do ' + providerName + ' para ouvir.';
+    $('#playing-title').textContent = list.title; $('#playing-description').textContent = 'Playlist do ' + providerName;
     const cover = $('#playing-cover'); cover.textContent = artLetter(list.title);
     const [a, b] = colorsFor(list.id); cover.style.background = `linear-gradient(145deg, ${a}, ${b})`;
-    const link = $('#youtube-link'); link.href = 'https://www.youtube.com/playlist?list=' + encodeURIComponent(id); link.hidden = false;
-    $('#prev-button').disabled = false; $('#next-button').disabled = false;
+    const link = $('#source-link'); link.href = P.sourceUrl(list); link.hidden = false;
+    $('#source-link-label').textContent = 'Abrir no ' + providerName;
+    const badge = $('#source-badge'); badge.textContent = providerName; badge.hidden = false; badge.dataset.provider = list.provider;
     renderQueue(); renderLibrary();
     $('#listen-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
     return list;
   }
-  async function openPlaylist(id) {
+  function openPlaylist(id) {
     const list = selectPlaylist(id); if (!list) return;
     const request = ++state.requestId;
-    if (validToken()) loadItems(id, request);
-    try {
-      await ensurePlayer();
+    destroyPlayer();
+    $('#player-frame').classList.toggle('spotify-frame', list.provider === 'spotify');
+    $('#player-placeholder').hidden = true;
+    const frame = document.createElement('iframe');
+    frame.id = 'pulso-embed'; frame.title = 'Playlist de ' + (list.provider === 'spotify' ? 'Spotify' : 'YouTube') + ': ' + list.title;
+    frame.allow = 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture';
+    frame.allowFullscreen = true; frame.referrerPolicy = 'strict-origin-when-cross-origin';
+    frame.src = P.embedUrl(list, location.origin);
+    // The native embed opens immediately. API initialization only adds optional controls.
+    frame.addEventListener('load', () => {
       if (request !== state.requestId) return;
-      state.player.loadPlaylist({ listType: 'playlist', list: id, index: 0, startSeconds: 0 });
-      state.playerId = id; $('#player-placeholder').hidden = true;
-      setTimeout(() => { if (request === state.requestId) updatePlaylistFromPlayer(); }, 1600);
-    } catch {
-      if (request === state.requestId) toast('Não foi possível abrir o player. Verifique sua conexão ou abra no YouTube.');
+      clearTimeout(playerTimer);
+    });
+    frame.addEventListener('error', () => {
+      if (request === state.requestId) setPlayerStatus('O player não carregou. Tente novamente ou abra a playlist na plataforma.', 'error');
+    });
+    $('#embed-host').append(frame);
+    playerTimer = setTimeout(() => {
+      if (request === state.requestId) setPlayerStatus('O player está demorando para carregar. Você pode tentar novamente.', 'warning');
+    }, 18000);
+    if (list.provider === 'spotify') {
+      setPlayerStatus('Use os controles e a lista de faixas do Spotify abaixo. Se forem exibidas apenas prévias, abra a playlist no Spotify.');
+      updateSpotifyTitle(list, request);
+    } else {
+      setPlayerStatus(location.protocol === 'file:' ?
+        'Abra o endereço publicado no GitHub Pages. O YouTube pode recusar a reprodução ao abrir este arquivo diretamente no computador.' :
+        'Aperte Play dentro do player. Não é preciso conectar o Google para tocar uma playlist pública.', location.protocol === 'file:' ? 'warning' : 'info');
+      if (validToken()) loadItems(list.id, request);
+      attachYoutubeControls(frame, request);
     }
   }
   function ensureIframeAPI() {
     if (window.YT?.Player) return Promise.resolve();
     if (iframePromise) return iframePromise;
     iframePromise = new Promise((resolve, reject) => {
-      const timer = setTimeout(() => { iframePromise = null; reject(new Error('timeout')); }, 15000);
+      const script = document.createElement('script'); script.src = 'https://www.youtube.com/iframe_api'; script.async = true;
+      const fail = () => { clearTimeout(timer); script.remove(); iframePromise = null; reject(new Error('API indisponível')); };
+      const timer = setTimeout(fail, 12000);
       window.onYouTubeIframeAPIReady = () => { clearTimeout(timer); resolve(); };
-      const script = document.createElement('script'); script.src = 'https://www.youtube.com/iframe_api';
-      script.onerror = () => { clearTimeout(timer); script.remove(); iframePromise = null; reject(new Error('script')); };
-      document.head.append(script);
+      script.onerror = fail; document.head.append(script);
     });
     return iframePromise;
   }
-  async function ensurePlayer() {
-    if (state.playerReady && state.player) return state.player;
-    await ensureIframeAPI();
-    if (state.player) {
-      if (state.playerReady) return state.player;
-      return new Promise((resolve, reject) => {
-        const until = Date.now() + 10000;
-        const wait = () => state.playerReady ? resolve(state.player) : Date.now() > until ? reject(new Error('player timeout')) : setTimeout(wait, 100);
-        wait();
-      });
+  async function attachYoutubeControls(frame, request) {
+    try {
+      await ensureIframeAPI();
+      if (request !== state.requestId || !frame.isConnected) return;
+      state.playerId = state.activeId;
+      state.player = new YT.Player(frame, { events: {
+        onReady: (event) => {
+          if (request !== state.requestId) return;
+          state.player = event.target; state.playerReady = true;
+          $('#prev-button').disabled = false; $('#next-button').disabled = false;
+          updatePlaylistFromPlayer();
+        },
+        onStateChange: (event) => {
+          if (request !== state.requestId) return;
+          if (event.data === 1) setPlayerStatus('Reproduzindo no YouTube.');
+          updatePlaylistFromPlayer();
+        },
+        onError: (event) => {
+          if (request !== state.requestId) return;
+          const messages = {
+            2: 'O YouTube recusou o link ou ID. Confira se ele aponta para uma playlist válida.',
+            5: 'O navegador não conseguiu reproduzir este vídeo. Tente novamente ou abra no YouTube.',
+            100: 'Esta faixa foi removida ou é privada. Tente a próxima faixa ou abra no YouTube.',
+            101: 'O dono desta faixa bloqueou a reprodução em outros sites. Tente a próxima faixa.',
+            150: 'O dono desta faixa bloqueou a reprodução em outros sites. Tente a próxima faixa.',
+            153: 'O YouTube não recebeu a identificação do site. Use o endereço publicado no GitHub Pages e verifique se a proteção de privacidade do navegador está bloqueando o player.'
+          };
+          setPlayerStatus((messages[event.data] || 'O YouTube não conseguiu abrir esta playlist.') + ' (Erro ' + event.data + ')', 'error');
+        },
+        onAutoplayBlocked: () => { if (request === state.requestId) setPlayerStatus('Aperte Play dentro do player para autorizar a reprodução.'); }
+      }});
+    } catch {
+      if (request === state.requestId) {
+        $('#prev-button').disabled = true; $('#next-button').disabled = true;
+        setPlayerStatus('Use os controles dentro do player. Os controles adicionais estão indisponíveis nesta conexão.', 'warning');
+        renderQueue();
+      }
     }
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => reject(new Error('player timeout')), 12000);
-      state.player = new YT.Player('youtube-player', {
-        width: '100%', height: '100%', playerVars: { playsinline: 1, origin: location.origin },
-        events: {
-          onReady: () => { clearTimeout(timer); state.playerReady = true; resolve(state.player); },
-          onStateChange: () => { updatePlaylistFromPlayer(); },
-          onError: (event) => {
-            if ([100, 101, 150].includes(event.data)) toast('Um vídeo está indisponível para incorporação. Tente a próxima faixa ou abra no YouTube.');
-            else toast('O YouTube não conseguiu reproduzir esta faixa.');
-          },
-          onAutoplayBlocked: () => toast('O navegador bloqueou a reprodução automática. Aperte Play no player para continuar.')
-        }
-      });
-    });
+  }
+  async function updateSpotifyTitle(list, request) {
+    if (!list.autoTitle) return;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6000);
+    try {
+      const url = new URL('https://open.spotify.com/oembed'); url.searchParams.set('url', P.sourceUrl(list));
+      const response = await fetch(url, { signal: controller.signal });
+      if (!response.ok) return;
+      const data = await response.json();
+      if (typeof data.title !== 'string' || !data.title.trim()) return;
+      const saved = state.saved.find(x => P.key(x) === P.key(list));
+      if (!saved) return;
+      saved.title = data.title.slice(0, 200); saved.autoTitle = false; saveLists(); renderLibrary();
+      if (request === state.requestId) {
+        state.selected.title = saved.title; $('#playing-title').textContent = saved.title; $('#listen-title').textContent = saved.title;
+      }
+    } catch { /* Metadata is optional; native playback does not depend on this request. */ }
+    finally { clearTimeout(timer); }
   }
   function updatePlaylistFromPlayer() {
-    if (!state.playerReady || !state.activeId || state.playerId !== state.activeId) return;
+    if (!state.playerReady || !state.activeId || state.playerId !== state.activeId || state.selected?.provider !== 'youtube') return;
     try {
       const ids = state.player.getPlaylist?.();
       if (Array.isArray(ids) && ids.length) state.playlistIds = ids;
@@ -204,12 +263,22 @@
   }
   function renderQueue() {
     const box = $('#queue-list'); box.replaceChildren();
+    if (state.selected?.provider === 'spotify') {
+      $('#queue-count').textContent = 'Spotify';
+      const panel = document.createElement('div'); panel.className = 'provider-info';
+      const label = document.createElement('span'); label.className = 'provider-icon'; label.textContent = '♫';
+      const title = document.createElement('h4'); title.textContent = 'Sua playlist no Spotify';
+      const text = document.createElement('p'); text.textContent = 'A lista de músicas e os controles estão dentro do player oficial. Escolha uma faixa por lá para ouvir.';
+      const hint = document.createElement('p'); hint.textContent = 'A reprodução completa depende da disponibilidade do Spotify e do suporte do navegador a áudio protegido. O player pode exibir prévias.';
+      const link = document.createElement('a'); link.href = P.sourceUrl(state.selected); link.target = '_blank'; link.rel = 'noopener'; link.className = 'outline-button'; link.textContent = 'Abrir no Spotify';
+      panel.append(label, title, text, hint, link); box.append(panel); return;
+    }
     const ids = state.playlistIds.length ? state.playlistIds : state.items.map(x => x.id);
     $('#queue-count').textContent = ids.length + (ids.length === 1 ? ' faixa' : ' faixas');
     if (!ids.length) {
       const empty = document.createElement('div'); empty.className = 'queue-empty';
       const note = document.createElement('div'); note.className = 'queue-empty-icon'; note.textContent = '♫';
-      const hint = document.createElement('p'); hint.textContent = state.activeId ? 'Carregando faixas... Você também pode usar os controles do player.' : 'As faixas aparecem aqui quando você escolher uma playlist.';
+      const hint = document.createElement('p'); hint.textContent = state.activeId ? 'A fila aparece quando o YouTube disponibilizar as faixas. Você já pode usar o player e a lista de vídeos dentro dele.' : 'As faixas aparecem aqui quando você escolher uma playlist.';
       empty.append(note, hint); box.append(empty); return;
     }
     let activeIndex = -1;
@@ -303,7 +372,7 @@
       for (let page = 0; page < 20; page++) {
         const data = await youtubeGet('playlists', { part: 'snippet,contentDetails', mine: 'true', maxResults: '50', ...(pageToken ? { pageToken } : {}) });
         for (const item of data.items || []) {
-          if (item.id) lists.push({ id: item.id, title: item.snippet?.title || 'Playlist sem nome', synced: true });
+          if (item.id) lists.push({ provider: 'youtube', id: item.id, title: item.snippet?.title || 'Playlist sem nome', synced: true });
         }
         pageToken = data.nextPageToken; if (!pageToken) break;
       }
@@ -314,7 +383,7 @@
   function disconnectGoogle() {
     const token = state.token; state.token = null; state.tokenExpires = 0; state.synced = [];
     if (token && window.google?.accounts?.oauth2?.revoke) google.accounts.oauth2.revoke(token, () => {});
-    if (state.activeId && !state.saved.some(x => x.id === state.activeId)) resetPlayer();
+    if (state.activeId && !state.saved.some(x => P.key(x) === state.activeId)) resetPlayer();
     renderLibrary(); updateAccountUI(); $('#settings-dialog').close(); toast('Conta desconectada neste navegador.');
   }
   function setSection(section) {
@@ -331,12 +400,14 @@
     $$('.close-dialog').forEach(button => button.addEventListener('click', () => button.closest('dialog').close()));
     $('#import-form').addEventListener('submit', event => {
       event.preventDefault();
-      const id = extractPlaylistId($('#playlist-url').value);
-      if (!id) { $('#import-error').textContent = 'Informe um link de playlist válido do YouTube (com list=...).'; $('#import-error').hidden = false; return; }
-      const title = $('#playlist-name').value.trim() || `Minha playlist ${state.saved.length + 1}`;
-      const existing = allLists().find(x => x.id === id);
+      const parsed = P.parse($('#playlist-url').value);
+      if (!parsed) { $('#import-error').textContent = 'Cole o link completo de uma playlist do YouTube ou Spotify. No Spotify, use open.spotify.com/playlist/...'; $('#import-error').hidden = false; return; }
+      const customTitle = $('#playlist-name').value.trim();
+      const title = customTitle || (parsed.provider === 'spotify' ? 'Playlist do Spotify' : `Minha playlist ${state.saved.length + 1}`);
+      const id = P.key(parsed);
+      const existing = allLists().find(x => P.key(x) === id);
       if (!existing) {
-        state.saved.unshift({ id, title });
+        state.saved.unshift({ ...parsed, title, autoTitle: !customTitle });
         if (!saveLists()) { state.saved.shift(); $('#import-error').textContent = 'O navegador não permitiu salvar esta playlist. Verifique o armazenamento local.'; $('#import-error').hidden = false; return; }
       }
       $('#import-dialog').close(); $('#import-form').reset(); $('#import-error').hidden = true;
@@ -359,6 +430,7 @@
     });
     $('#prev-button').addEventListener('click', () => { if (state.playerReady) state.player.previousVideo(); });
     $('#next-button').addEventListener('click', () => { if (state.playerReady) state.player.nextVideo(); });
+    $('#retry-player').addEventListener('click', () => { if (state.activeId) openPlaylist(state.activeId); });
   }
   // Add a dedicated action rather than making a connected account button silently disconnect.
   const disconnect = document.createElement('button');
