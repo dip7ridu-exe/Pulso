@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b0d17">
+  <meta name="description" content="Suas playlists do YouTube em uma interface simples e bonita.">
+  <title>Pulso — Sua música, seu espaço</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <svg class="sprite" aria-hidden="true" xmlns="http://www.w3.org/2000/svg">
+    <symbol id="i-home" viewBox="0 0 24 24"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></symbol>
+    <symbol id="i-library" viewBox="0 0 24 24"><path d="M4 4v16M9 4v16M14 7v13m4-15 3 15M3 20h12"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 .5l3-3a5 5 0 0 0-7-7l-2 2M14 11a5 5 0 0 0-7-.5l-3 3a5 5 0 0 0 7 7l2-2"/></symbol>
+    <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></symbol>
+    <symbol id="i-external" viewBox="0 0 24 24"><path d="M12 5h7v7m0-7-9 9M19 14v5H5V5h5"/></symbol>
+    <symbol id="i-settings" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v2m0 16v2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M2 12h2m16 0h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+    <symbol id="i-close" viewBox="0 0 24 24"><path d="M5 5 19 19M19 5 5 19"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3m3 0-1 14H7L6 7m4 4v6m4-6v6"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><path d="m5 5 10 7L5 19zM19 5v14"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><path d="m19 5-10 7 10 7zM5 5v14"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20 8a8 8 0 1 0 1 5m-1-9v4h-4"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m4 12 5 5L20 6"/></symbol>
+  </svg>
+
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="#inicio" aria-label="Pulso, início"><span class="brand-mark"><span></span><span></span><span></span><span></span></span><span>PULSO<span class="brand-dot">.</span></span></a>
+      <div class="sidebar-group"><div class="side-label">MENU</div>
+        <button class="nav-item active" data-nav="home"><svg><use href="#i-home"/></svg><span>Início</span></button>
+        <button class="nav-item" data-nav="library"><svg><use href="#i-library"/></svg><span>Biblioteca</span></button>
+      </div>
+      <div class="sidebar-group side-playlists"><div class="side-label">ACESSO RÁPIDO <button class="icon-button tiny" id="side-add" aria-label="Adicionar playlist"><svg><use href="#i-plus"/></svg></button></div><div id="shortcut-list" class="shortcut-list"></div></div>
+      <div class="sidebar-bottom"><div class="mini-art"><span>♪</span></div><div><strong>Seu espaço para ouvir.</strong><p>Uma interface leve para suas playlists favoritas.</p></div></div>
+    </aside>
+
+    <main class="main" id="inicio">
+      <header class="topbar">
+        <div class="breadcrumb"><span class="crumb-muted">Sua música</span><span class="crumb-separator">/</span><span id="crumb-current">Início</span></div>
+        <div class="top-actions">
+          <label class="search-field"><svg><use href="#i-search"/></svg><input id="search" type="search" placeholder="Buscar playlists" autocomplete="off" aria-label="Buscar playlists"><span class="keycap">/</span></label>
+          <button class="account-button" id="connect-button" type="button"><span class="account-icon">G</span><span id="connect-label">Conectar Google</span></button>
+          <button class="icon-button settings-button" id="settings-button" aria-label="Configurar Google"><svg><use href="#i-settings"/></svg></button>
+        </div>
+      </header>
+
+      <div class="page-content">
+        <section class="welcome" id="welcome">
+          <div class="welcome-copy"><span class="eyebrow"><span class="live-dot"></span> O SEU LUGAR DE OUVIR</span><h1>O som que você ama,<br><em>do seu jeito.</em></h1><p>Suas playlists do YouTube em um cantinho mais simples, bonito e sem distrações.</p><button class="primary-button" id="hero-add">Adicionar playlist <svg><use href="#i-arrow"/></svg></button></div>
+          <div class="hero-visual" aria-hidden="true"><div class="hero-glow"></div><div class="vinyl"><div class="vinyl-rings"></div><div class="vinyl-label"><div class="vinyl-center"></div></div></div><div class="hero-note note-one">♫</div><div class="hero-note note-two">♪</div><div class="hero-tag"><span class="tag-pulse"></span> TUDO NO SEU RITMO</div></div>
+        </section>
+
+        <section class="collection" id="library-section" aria-labelledby="library-title"><div class="section-heading"><div><span class="section-kicker">A SUA SELEÇÃO</span><h2 id="library-title">Minha biblioteca <span id="playlist-count" class="count-pill">0</span></h2><p id="collection-subtitle">Guarde suas playlists favoritas em um só lugar.</p></div><button class="outline-button" id="add-button"><svg><use href="#i-plus"/></svg> Nova playlist</button></div>
+          <div id="playlist-grid" class="playlist-grid"></div>
+          <div id="empty-state" class="empty-state" hidden><div class="empty-art">♫</div><h3 id="empty-title">A sua biblioteca começa aqui</h3><p id="empty-description">Cole o link de uma playlist do YouTube e comece a ouvir.</p><button class="primary-button" id="empty-add"><svg><use href="#i-plus"/></svg> Adicionar playlist</button></div>
+        </section>
+
+        <section class="listen-section" id="listen-section" aria-labelledby="listen-title"><div class="section-heading listen-heading"><div><span class="section-kicker">AGORA TOCANDO</span><h2 id="listen-title">Seu player</h2><p id="listen-subtitle">Escolha uma playlist para começar.</p></div><a id="youtube-link" class="text-link" href="https://www.youtube.com/" target="_blank" rel="noopener noreferrer" hidden>Abrir no YouTube <svg><use href="#i-external"/></svg></a></div>
+          <div class="listen-layout"><div class="player-column"><div class="player-frame" id="player-frame"><div class="player-placeholder" id="player-placeholder"><div class="placeholder-orbit"><svg><use href="#i-play"/></svg></div><strong>Sua próxima música começa aqui</strong><span>Selecione uma playlist na biblioteca</span></div><div id="youtube-player"></div></div><div class="player-details"><div class="playing-cover" id="playing-cover">♫</div><div class="playing-meta"><span>PLAYLIST SELECIONADA</span><h3 id="playing-title">Nada por aqui ainda</h3><p id="playing-description">Adicione sua primeira playlist e dê o play.</p></div><div class="player-actions"><button class="icon-button" id="prev-button" aria-label="Faixa anterior" disabled><svg><use href="#i-prev"/></svg></button><button class="icon-button" id="next-button" aria-label="Próxima faixa" disabled><svg><use href="#i-next"/></svg></button></div></div></div>
+          <div class="queue-panel"><div class="queue-header"><div><span class="section-kicker">A SEGUIR</span><h3>Fila de reprodução</h3></div><span id="queue-count" class="queue-count">0 faixas</span></div><div id="queue-list" class="queue-list"><div class="queue-empty"><div class="queue-empty-icon">♫</div><p>As faixas aparecem aqui quando você escolher uma playlist.</p></div></div></div></div>
+        </section>
+
+        <footer class="footer"><span>PULSO<span class="brand-dot">.</span> <small>Feito para ouvir no seu ritmo.</small></span><span>Vídeos reproduzidos pelo player oficial do YouTube.</span></footer>
+      </div>
+    </main>
+  </div>
+
+  <nav class="mobile-nav" aria-label="Navegação"><button data-nav="home" class="active"><svg><use href="#i-home"/></svg><span>Início</span></button><button data-nav="library"><svg><use href="#i-library"/></svg><span>Biblioteca</span></button><button id="mobile-add"><svg><use href="#i-plus"/></svg><span>Adicionar</span></button></nav>
+
+  <dialog id="import-dialog" class="modal"><form id="import-form" method="dialog" novalidate><div class="modal-top"><span class="modal-icon"><svg><use href="#i-link"/></svg></span><button type="button" class="icon-button close-dialog" aria-label="Fechar"><svg><use href="#i-close"/></svg></button></div><h2>Adicionar playlist</h2><p>Cole o link da playlist do YouTube. Ela ficará salva neste navegador.</p><label for="playlist-url">Link da playlist</label><input id="playlist-url" type="text" inputmode="url" placeholder="https://www.youtube.com/playlist?list=..." required spellcheck="false"><small class="field-hint">Aceita links de playlists do YouTube ou o ID da lista.</small><label for="playlist-name">Nome para exibir <span>(opcional)</span></label><input id="playlist-name" type="text" placeholder="Ex.: Minha trilha favorita" maxlength="80"><div id="import-error" class="form-error" role="alert" hidden></div><button class="primary-button modal-submit" type="submit">Salvar e ouvir <svg><use href="#i-arrow"/></svg></button></form></dialog>
+
+  <dialog id="settings-dialog" class="modal settings-modal"><form id="settings-form" method="dialog" novalidate><div class="modal-top"><span class="modal-icon"><svg><use href="#i-settings"/></svg></span><button type="button" class="icon-button close-dialog" aria-label="Fechar"><svg><use href="#i-close"/></svg></button></div><h2>Conectar sua conta</h2><p>Para mostrar automaticamente as playlists da sua conta, configure um Client ID do Google. Seus links adicionados funcionam mesmo sem isso.</p><div class="setup-steps"><div><b>1</b><span>Crie um projeto no <a href="https://console.cloud.google.com/" target="_blank" rel="noopener noreferrer">Google Cloud</a> e ative a <strong>YouTube Data API v3</strong>.</span></div><div><b>2</b><span>Configure a tela de consentimento e crie um <strong>ID do cliente OAuth</strong> do tipo Aplicativo da Web.</span></div><div><b>3</b><span>Adicione <code id="origin-value">https://usuario.github.io</code> às <strong>origens JavaScript autorizadas</strong>. Em modo de teste, adicione seu e-mail como usuário de teste.</span></div></div><label for="client-id">Client ID OAuth</label><input id="client-id" type="text" placeholder="123456789-...apps.googleusercontent.com" spellcheck="false" autocomplete="off"><div id="settings-error" class="form-error" role="alert" hidden></div><button class="primary-button modal-submit" type="submit">Salvar configuração <svg><use href="#i-check"/></svg></button><small class="privacy-note">O Client ID fica salvo apenas neste navegador. A autorização usa a janela oficial do Google; a senha nunca passa por este site.</small></form></dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
