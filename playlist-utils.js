@@ -35,16 +35,37 @@
       'https://www.youtube.com/playlist?list=' + encodeURIComponent(entry.id);
   }
   function embedUrl(entry, origin = '') {
-    if (entry.provider === 'spotify') return 'https://open.spotify.com/embed/playlist/' + entry.id + '?utm_source=generator&theme=0';
+    if (entry.provider === 'spotify') return 'https://open.spotify.com/embed/' + (entry.type || 'playlist') + '/' + entry.id + '?utm_source=generator&theme=0';
     const url = new URL('https://www.youtube.com/embed/videoseries');
     url.searchParams.set('list', entry.id);
+    url.searchParams.set('listType', 'playlist');
     url.searchParams.set('enablejsapi', '1');
     url.searchParams.set('playsinline', '1');
     url.searchParams.set('autoplay', '0');
     if (/^https?:\/\//.test(origin)) url.searchParams.set('origin', origin);
     return url.href;
   }
-  const api = { parse, normalize, key, sourceUrl, embedUrl };
+  function parseTrack(raw) {
+    let value = String(raw || '').trim();
+    const uri = /^spotify:track:([A-Za-z0-9]{22})$/.exec(value);
+    if (uri) return { provider: 'spotify', type: 'track', id: uri[1], uri: value };
+    if (/^(?:www\.|m\.|music\.)?youtube\.com\//i.test(value) || /^(?:youtu\.be|open\.spotify\.com)\//i.test(value)) value = 'https://' + value;
+    try {
+      const url = new URL(value);
+      if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password) return null;
+      if (url.hostname === 'open.spotify.com') {
+        const match = /^\/(?:intl-[a-zA-Z-]+\/)?(?:embed\/)?track\/([A-Za-z0-9]{22})\/?$/.exec(url.pathname);
+        return match ? { provider: 'spotify', type: 'track', id: match[1], uri: 'spotify:track:' + match[1] } : null;
+      }
+      if (['youtube.com', 'www.youtube.com', 'm.youtube.com', 'music.youtube.com', 'youtu.be'].includes(url.hostname)) {
+        const id = url.hostname === 'youtu.be' ? url.pathname.slice(1) : /^\/(?:shorts|embed)\/([\w-]{11})\/?$/.exec(url.pathname)?.[1] || (url.pathname === '/watch' ? url.searchParams.get('v') : null);
+        return /^[\w-]{11}$/.test(id || '') ? { provider: 'youtube', type: 'video', id } : null;
+      }
+    } catch {}
+    return null;
+  }
+  function trackUrl(track) { return track.provider === 'spotify' ? 'https://open.spotify.com/track/' + track.id : 'https://www.youtube.com/watch?v=' + track.id; }
+  const api = { parse, parseTrack, trackUrl, normalize, key, sourceUrl, embedUrl };
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.PulsoPlaylist = api;
 })(typeof window !== 'undefined' ? window : globalThis);

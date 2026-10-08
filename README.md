@@ -1,66 +1,105 @@
-# Pulso 2.0 — playlists do YouTube e Spotify
+# Pulso 3.0 — suas playlists, com mais controle
 
-Site estático para GitHub Pages. Não há servidor, banco de dados nem etapa de instalação. Os arquivos `index.html`, `style.css`, `playlist-utils.js`, `app.js` e `icon.svg` devem ficar juntos na raiz do repositório publicado.
+Site estático para GitHub Pages, em português. Vanilla HTML, CSS e JavaScript, sem instalação, servidor ou build. As playlists da versão anterior são preservadas no mesmo navegador e endereço.
 
-## Publicar no GitHub Pages
+## Atualizar no GitHub Pages
 
-1. Extraia o ZIP e envie `index.html`, `style.css`, `playlist-utils.js`, `app.js` e `icon.svg` à raiz de um repositório GitHub. O `README.md` também pode ser enviado. Não envie só o ZIP.
-2. No repositório, abra **Settings → Pages**. Em **Build and deployment**, selecione **Deploy from a branch**, depois `main` e `/ (root)`. Salve.
-3. Abra o endereço informado pelo GitHub, normalmente `https://SEU-USUARIO.github.io/NOME-DO-REPOSITORIO/`.
-4. Clique em **Adicionar playlist**, cole um link do YouTube com `list=...` ou um link do Spotify como `https://open.spotify.com/playlist/55lxQh4uRizzGJtM68hOKD`, dê um nome e salve. O player é aberto diretamente; clique no **Play dentro dele**. A importação por link não precisa de Client ID ou chave de API.
-5. Se estiver atualizando a versão anterior, substitua todos os arquivos, incluindo o novo `playlist-utils.js`, e recarregue com `Ctrl + F5`. O rodapé deve mostrar **Pulso 2.0**. As playlists salvas anteriormente são preservadas no mesmo navegador e endereço.
+1. Extraia o ZIP.
+2. Substitua os arquivos no repositório: **index.html, style.css, playlist-utils.js, spotify-service.js, app.js e icon.svg**. O novo `spotify-service.js` também deve ser enviado. Eles precisam ficar juntos na pasta publicada. Não envie apenas o ZIP.
+3. Em **Settings → Pages**, use **Deploy from a branch → main → / (root)** se publicar na raiz.
+4. Abra o endereço HTTPS informado pelo GitHub, por exemplo `https://SEU-USUARIO.github.io/NOME-DO-REPOSITORIO/`.
+5. Recarregue com **Ctrl + F5**. O rodapé deve mostrar **Pulso 3.0**.
 
-## Correções desta versão
+Abrir `index.html` por duplo clique (`file://`) pode causar erros no YouTube e impede a conexão avançada do Spotify. Use o endereço publicado.
 
-- O player abre diretamente a playlist; uma falha na API de controles adicionais não impede a abertura do player oficial.
-- Spotify aceita links com parâmetros de compartilhamento, URLs com `/intl-pt/` e URIs `spotify:playlist:...`.
-- A troca de plataforma encerra o player anterior para evitar dois áudios ao mesmo tempo.
-- O YouTube recebe a origem do site e a política de referência adequada; erros retornados pelo player aparecem na tela com seu código e um botão **Tentar novamente**.
-- Os arquivos JavaScript/CSS têm identificação de versão para evitar misturar o código antigo com o atualizado.
+## Novidades
+
+- Botões de play/pausa, anterior e próxima, conforme o modo de reprodução.
+- Volume e silenciar no YouTube e no Spotify com modo Premium.
+- Barra de tempo e avanço no YouTube e no Spotify Premium. No Spotify padrão, a barra apenas mostra o progresso recebido do player.
+- **Adicionar música**: cole o link de uma música da mesma plataforma para incluir na fila.
+- Fila local do YouTube e Spotify padrão: tocar agora, mover para o início, remover e limpar.
+- Spotify Premium: adicionar músicas à fila oficial e ver as próximas músicas. A ordem segue o Spotify; o Pulso não oferece remoção/reordenação da fila oficial.
+- Repetição da faixa, ordem aleatória e temporizador para pausar em 15, 30 ou 60 minutos, nos modos com suporte.
+- Atalhos: **Espaço** para play/pausa, **M** para silenciar e **← / →** para avançar/voltar 10 segundos. Atalhos não são acionados enquanto você digita em formulários.
+- Um único player ativo, para evitar dois áudios ao trocar de plataforma.
+
+As filas locais ficam abertas nesta sessão da página; não alteram suas playlists nas plataformas. O volume fica salvo neste navegador. Google e Spotify são conexões independentes.
+
+## O erro do YouTube mostrado no print
+
+**Erro 150** (equivalente ao 101) significa que o dono do vídeo bloqueou a reprodução em sites externos. O site não consegue remover essa restrição. Os erros 100, 101 e 150 agora marcam a faixa como indisponível e tentam avançar para outra faixa, com limite de tentativas para evitar um ciclo infinito.
+
+Quando o YouTube não entrega a lista de músicas, o Pulso tenta avançar pelo player. Se isso também falhar, mostra **Carregar lista de faixas** e **Abrir no YouTube**. Você pode:
+
+- Conectar o Google ou configurar uma chave da YouTube Data API para obter as faixas da playlist.
+- Adicionar links individuais em **Adicionar música**. Eles também precisam permitir reprodução em outros sites.
+- Abrir a playlist diretamente no YouTube quando as músicas estiverem bloqueadas.
+
+Quando há metadados da API mas a lista nativa não abre, o Pulso monta a reprodução usando os IDs individuais dos vídeos. Isso ajuda a alcançar as outras faixas, mas não libera vídeos bloqueados, privados, excluídos ou restritos por região/idade. O erro 153 tem outra causa: referência/identificação do site bloqueada ou ausente; publique em HTTPS e verifique as proteções do navegador.
+
+### Listar faixas do YouTube com uma chave de API (opcional)
+
+1. Crie um projeto no [Google Cloud Console](https://console.cloud.google.com/) e ative **YouTube Data API v3**.
+2. Em **APIs e serviços → Credenciais**, crie uma **Chave de API**.
+3. Restrinja o uso da chave à **YouTube Data API v3** e às referências HTTP do seu site, por exemplo `https://SEU-USUARIO.github.io/*`.
+4. No Pulso, clique na engrenagem e cole a chave em **Chave da YouTube Data API**. O campo de Client ID do Google pode ficar vazio se você usar apenas essa opção.
+
+A chave é pública no navegador e fica salva localmente; suas restrições devem ser configuradas no Google. Ela só lista conteúdo acessível pela API e não faz login nem desbloqueia vídeos.
 
 ### Conectar suas playlists da conta Google (opcional)
 
-Essa etapa é necessária somente para o botão **Conectar Google** listar automaticamente as playlists criadas na sua conta. Você precisa configurar o seu próprio projeto Google; o ZIP não pode vir com as credenciais de outra pessoa.
+1. No seu projeto Google, ative **YouTube Data API v3**.
+2. Configure a tela de consentimento OAuth com `https://www.googleapis.com/auth/youtube.readonly`. Se o app estiver em teste, adicione sua conta como usuário de teste.
+3. Crie um **ID do cliente OAuth → Aplicativo da Web**. Em **Origens JavaScript autorizadas**, informe a origem do site, como `https://SEU-USUARIO.github.io`, sem o caminho do repositório.
+4. No Pulso, salve o Client ID na engrenagem e clique em **Conectar Google**. O login oficial autoriza a leitura; a senha não passa pelo Pulso.
 
-1. Em [Google Cloud Console](https://console.cloud.google.com/), crie/selecione um projeto e ative **YouTube Data API v3** em **APIs e serviços → Biblioteca**.
-2. Configure a tela de consentimento OAuth. Escolha o público apropriado para seu uso. Se deixar o aplicativo em **Testing**, inclua a sua conta Google como **usuário de teste**. Adicione o escopo `https://www.googleapis.com/auth/youtube.readonly` quando solicitado.
-3. Em **Credenciais**, crie um **ID do cliente OAuth → Aplicativo da Web**. Em **Origens JavaScript autorizadas**, informe a **origem** do seu site, por exemplo `https://SEU-USUARIO.github.io` (sem o caminho `/NOME-DO-REPOSITORIO/`, sem barra final). Para um domínio próprio, adicione também a origem desse domínio. Alterações podem levar alguns minutos para surtir efeito.
-4. Copie somente o **Client ID**, que termina em `.apps.googleusercontent.com`. No Pulso, abra o ícone de engrenagem, cole o ID, salve e clique em **Conectar Google**. Autorize a leitura das playlists na janela oficial do Google.
+O botão Sincronizar busca playlists criadas na conta. O token do Google fica na memória da página e precisa ser autorizado novamente após recarregar.
 
-**Não cole o Client Secret no site ou no GitHub.** O Pulso usa o fluxo de token do Google no navegador e guarda apenas o Client ID e os links que você adicionar no armazenamento local. O token de acesso permanece apenas na memória da aba; após recarregar, clique em **Conectar Google** novamente. O Google poderá exigir verificação adicional para disponibilizar o login a pessoas fora da lista de teste.
+## Spotify: dois modos
 
-## O que funciona
+| Função | Player padrão | Controle completo · Premium |
+| --- | --- | --- |
+| Abrir sua playlist por link | Sim, sem configurar um app | Sim, após conectar |
+| Play/pausa no Pulso | Se a API do embed carregar | Sim |
+| Lista de faixas | No player oficial | Também no Pulso, quando a API permitir |
+| Volume / silenciar no Pulso | Não; use o volume do sistema | Sim |
+| Avançar/voltar na música | Controles disponíveis no embed | Sim |
+| Próxima música | Faixas no embed ou fila local | Sim, fila oficial |
+| Repetir / aleatório | Controles disponíveis no embed | Sim |
+| Música completa | Depende do embed, conta e navegador; pode ser prévia | Exige conta Premium e acesso autorizado |
 
-- Biblioteca de links do YouTube e Spotify salva no navegador, pesquisa e remoção.
-- YouTube: fila e botões extras de próxima/anterior quando a API estiver disponível. O player nativo continua acessível se a API não carregar.
-- Spotify: lista de faixas e controles integrados ao player oficial. O nome da playlist é consultado automaticamente quando o Spotify disponibiliza o metadado; você também pode definir um nome manual.
-- Login opcional para ler playlists da conta via YouTube Data API v3 e exibir os títulos das faixas. As listas da conta precisam de nova sincronização ao recarregar a página.
-- Layout adaptado a computador e celular, sem framework de interface.
+### Player padrão
 
-## Limitações do YouTube
+Continue usando o link da playlist que já funcionou. Você pode adicionar links `https://open.spotify.com/track/...` ou URIs `spotify:track:...` à fila local. O Pulso muda para a próxima quando o embed informa o fim ou a troca da faixa; você também pode apertar **Próxima**. Bloqueios de autoplay podem exigir apertar Play dentro do embed. Ao terminar a fila, volta ao **início** da playlist, porque o embed não expõe um controle para retomar a coleção no ponto exato. **Voltar à playlist selecionada** permite voltar antes.
 
-- O vídeo é reproduzido pelo **player oficial do YouTube, visível na página**. O site não extrai áudio, não baixa músicas, não remove anúncios e não cria reprodução oculta em segundo plano.
-- Algumas músicas ou playlists podem impedir a incorporação, estar indisponíveis, exigir login no próprio player ou ter restrições regionais. Nesses casos, use **Abrir no YouTube**.
-- O player ainda carrega recursos e vídeo do YouTube. Esta interface elimina partes da página principal, mas não garante uma redução específica de memória ou tráfego.
-- Playlists privadas e certas listas especiais do YouTube Music podem não tocar ou aparecer da mesma forma que no YouTube, mesmo que seus metadados sejam acessíveis pela conta.
-- A fila sem login pode mostrar números das faixas em vez dos títulos, conforme o que o player disponibilizar. Com login, o site consulta os títulos na API.
-- A reprodução começa quando você aperta **Play dentro do player**, evitando depender do autoplay do navegador.
-- Se abrir o `index.html` diretamente pelo computador (`file://`), o YouTube pode retornar **erro 153** por falta de identificação do site. Use o endereço HTTPS publicado no GitHub Pages.
-- Se o erro persistir, o aviso do site identifica o código quando a API do YouTube o disponibilizar. `100` indica faixa removida/privada; `101` e `150` indicam reprodução em outros sites bloqueada pelo dono. Use os controles nativos ou **Abrir no YouTube**.
+O embed oficial não oferece um método de volume para o site hospedeiro. Por isso, o volume fica desativado neste modo, com indicação do modo necessário. Se a API de controles adicionais não carregar, use o próprio player oficial. Prévias continuam sendo prévias.
 
-## Limitações do Spotify
+### Ativar volume e fila oficial com Spotify Premium
 
-- O link abre o **player oficial do Spotify**. A integração não transforma a playlist em músicas do YouTube e não copia o áudio do Spotify.
-- Alguns navegadores/sessões só recebem **prévias curtas**. Faixas completas dependem das condições do Spotify, da disponibilidade da faixa e do suporte a áudio protegido no navegador. O iframe mantém a permissão `encrypted-media`; o site não pode garantir faixas completas em qualquer conta/navegador.
-- Se aparecer o rótulo **Prévia**, use **Abrir no Spotify**, ou entre pelo próprio player se o Spotify solicitar. A configuração do Google não altera a sessão do Spotify.
-- Playlists privadas ou indisponíveis podem exigir abrir a plataforma original.
+1. Use uma conta **Spotify Premium**. Crie seu aplicativo em [Spotify for Developers](https://developer.spotify.com/dashboard), com **Web API** e **Web Playback SDK** habilitados.
+2. Adicione às **Redirect URIs** o endereço exato da página, incluindo o caminho do repositório e a barra final, se houver. Exemplo: `https://SEU-USUARIO.github.io/NOME-DO-REPOSITORIO/`. O Pulso mostra o endereço correto na janela **Conectar Spotify**.
+3. Em app no modo de desenvolvimento, inclua a conta em **User Management**. As regras atuais também exigem Premium para o dono do app e limitam usuários autorizados. O acesso às faixas de playlists alheias pode não estar disponível; playlists ainda podem ser tocadas pelo seu contexto, conforme o Spotify permitir.
+4. Copie o **Client ID**, abra sua playlist no Pulso, clique em **Conectar Spotify**, cole o ID e escolha **Salvar e conectar Spotify**. **Não cole Client Secret**.
+5. Após o login, selecione **Controle completo · Premium** e aperte **Play**. O Pulso aparece como dispositivo **Pulso — navegador**.
+6. Use o volume, o botão **+** nas faixas da sua playlist ou **Adicionar música** para incluir um link na fila oficial. Inicie a reprodução antes de adicionar à fila.
 
-## Arquivos
+A integração usa OAuth com PKCE e o SDK oficial; não exige backend, Client Secret ou extração de áudio. A sessão Spotify fica no armazenamento desta aba até desconectar/fechar a sessão, com renovação do token quando necessário. **Desconectar Spotify** remove a sessão local. Para revogar o acesso permanentemente, use as configurações de aplicativos da conta Spotify.
 
-- `index.html`: estrutura e interface.
-- `style.css`: tema e responsividade.
-- `playlist-utils.js`: interpretação e validação dos links.
-- `app.js`: biblioteca local, OAuth, APIs e players.
-- `icon.svg`: ícone do site.
+Se a autorização, Premium ou áudio protegido não estiver disponível, volte ao **Player padrão**. O Pulso mantém o player que já funcionava.
 
-Fontes: [Spotify Embeds](https://developer.spotify.com/documentation/embeds), [solução de problemas do Spotify](https://developer.spotify.com/documentation/embeds/tutorials/troubleshooting), [YouTube IFrame Player API](https://developers.google.com/youtube/iframe_api_reference), [YouTube Data API](https://developers.google.com/youtube/v3), [Google Identity Services](https://developers.google.com/identity/oauth2/web/guides/use-token-model), [políticas do YouTube](https://developers.google.com/youtube/terms/developer-policies).
+## Verificação e limites
+
+Foram verificados sintaxe, referências locais, URLs, preservação da biblioteca antiga, controles de volume/progresso, fila e retorno ao contexto, tratamento dos erros 150/153, metadados e fluxos do embed/SDK com simulações dos players oficiais. O login real e o áudio completo do Spotify Premium dependem de seu aplicativo e sua conta; não foram validados com credenciais pessoais.
+
+O site é uma interface enxuta, mas os players oficiais continuam consumindo recursos. Não há download, conversão em MP3, remoção de anúncios ou garantia de áudio com o navegador fechado.
+
+## Documentação oficial
+
+- [YouTube IFrame Player API: controles e códigos de erro](https://developers.google.com/youtube/iframe_api_reference)
+- [YouTube Player Parameters](https://developers.google.com/youtube/player_parameters)
+- [Spotify iFrame API](https://developer.spotify.com/documentation/embeds/references/iframe-api)
+- [Spotify Web Playback SDK](https://developer.spotify.com/documentation/web-playback-sdk/reference)
+- [Spotify OAuth com PKCE](https://developer.spotify.com/documentation/web-api/tutorials/code-pkce-flow)
+- [Spotify: adicionar à fila](https://developer.spotify.com/documentation/web-api/reference/add-to-queue)
+- [Spotify: regras de desenvolvimento de 2026](https://developer.spotify.com/documentation/web-api/tutorials/february-2026-migration-guide)
